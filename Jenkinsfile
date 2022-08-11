@@ -1,15 +1,18 @@
 pipeline {
-    agent any
+    agent {
+        label "ansible_docker"
+    }
+    
     stages {
-        stage('Download code') {
+        stage('prepare_node') {
             steps {
-                git 'https://github.com/iExad/example-playbook.git'
-            }
-        }
-        stage('Execute ansible') {
-            steps {
-                sh 'ansible-galaxy install -p $WORKSPACE -r requirements.yml'
-                sh 'ansible-playbook ./site.yml -i ./inventory/prod.yml'
+                git 'https://github.com/iExad/example-playbook'
+                sh 'ansible-vault decrypt secret --vault-password-file vault_pass'
+                sh 'mkdir ~/.ssh/ && mv ./secret ~/.ssh/id_rsa && chmod 400 ~/.ssh/id_rsa'
+                sh 'touch ~/.ssh/known_hosts'
+                sh 'ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts'
+                sh 'ansible-galaxy install -r requirements.yml -p roles'
+                sh 'ansible-playbook site.yml -i inventory/prod.yml'
             }
         }
     }
